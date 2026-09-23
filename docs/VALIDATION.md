@@ -6,6 +6,7 @@
 - Ubuntu 官方发行包中的 age 1.1.1（含 age-keygen）、minisign 0.11；调用真实命令，没有使用假加密。
 - `npm run check`：入口、bundle manifest、JavaScript 语法及无 npm 生产依赖检查通过。
 - `REQUIRE_CRYPTO=1 npm test`：**16 项通过，0 失败、0 跳过**。
+- GitHub Actions 首次远程验收通过：[运行 #1](https://github.com/lunaticruna/dsh-secure-publish/actions/runs/35876081376)，对应源码提交 `9c1c6ff7fc3061b30f0644e61616d065c344891c`。环境为 Ubuntu 24.04.5、Node.js 22.23.2、Git 2.55.0、发行包 age 1.1.1 / minisign 0.11；包检查、全部 16 项测试（0 失败、0 跳过）及 `npm pack --ignore-scripts` 均成功。
 
 | 验证范围 | 结果 |
 | --- | --- |
@@ -32,7 +33,7 @@
 
 - DSH 完整宿主与 DSHA Android 真机/模拟器加载验收。
 - Windows/macOS 原生加密、ACL、文件锁、目录替换验收。
-- 使用真实 GitHub 凭据对远程中继 push/fetch，以及 GitHub Actions 运行。CI 已提供，需发布仓库后运行。
+- 使用真实 GitHub 凭据对业务密文中继 push/fetch；已通过的 CI 集成测试仍使用本地裸 Git 中继。
 - OS 断电、存储故障注入；进程中断测试不等于所有文件系统的断电耐久性保证。
 - 外部安全审计、超大规模压力测试，以及配置向导/口令提示的人机验收。
 
