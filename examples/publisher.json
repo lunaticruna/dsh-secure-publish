@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "stateDir": "/REPLACE_HOME/.local/state/dsh-secure-publish",
+  "projects": {
+    "desktop": {
+      "role": "publisher",
+      "project": "demo",
+      "channel": "main",
+      "repository": "REPLACE_OWNER/REPLACE_RELAY_REPOSITORY",
+      "branch": "secure-relay",
+      "source": "/REPLACE_HOME/Projects/demo",
+      "include": ["src", "README.md", "package.json"],
+      "exclude": [],
+      "recipients": ["REPLACE_WITH_TARGET_AGE_PUBLIC_KEY"],
+      "signingKey": "/REPLACE_HOME/.config/dsh-secure-publish/keys/publisher.minisign.key",
+      "verifyKey": "/REPLACE_HOME/.config/dsh-secure-publish/keys/publisher.minisign.pub",
+      "minSequence": 1,
+      "maxAgeDays": 30
+    }
+  }
+}

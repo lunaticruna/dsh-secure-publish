@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "stateDir": "/REPLACE_HOME/.local/state/dsh-secure-publish",
+  "projects": {
+    "laptop": {
+      "role": "receiver",
+      "project": "demo",
+      "channel": "main",
+      "repository": "REPLACE_OWNER/REPLACE_RELAY_REPOSITORY",
+      "branch": "secure-relay",
+      "identity": "/REPLACE_HOME/.config/dsh-secure-publish/keys/laptop.agekey",
+      "verifyKey": "/REPLACE_HOME/.config/dsh-secure-publish/keys/publisher.minisign.pub",
+      "targetRoot": "/REPLACE_HOME/SecureWorkspaces/demo",
+      "minSequence": 1,
+      "maxAgeDays": 30
+    }
+  }
+}

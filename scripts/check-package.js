@@ -1,0 +1,10 @@
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
+const p=JSON.parse(await fs.readFile('package.json','utf8'));
+assert.equal(p.dsh.bundle.patch,'./cordis.patch.yml');
+assert.equal(p.dependencies,undefined);
+for(const file of [p.main,p.bin['secure-publish'],p.dsh.bundle.patch]) await fs.access(file);
+for(const file of await fs.readdir('lib')) if(file.endsWith('.js')) assert.equal(spawnSync(process.execPath,['--check',`lib/${file}`]).status,0,file);
+assert(!(await fs.readFile('lib/plugin.js','utf8')).includes('tools.register'));
+console.log('Package entries, zero production dependencies and JavaScript syntax: OK');

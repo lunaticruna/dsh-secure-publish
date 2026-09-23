@@ -1,0 +1,3 @@
+- insert:
+    - id: secure-publish
+      name: dsh-secure-publish

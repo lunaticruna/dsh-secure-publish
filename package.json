@@ -1,0 +1,17 @@
+{
+  "name": "dsh-secure-publish",
+  "version": "0.1.0",
+  "description": "Human-controlled minisign + age Publish / Fetch for DSH and DSHA",
+  "repository": { "type": "git", "url": "git+https://github.com/lunaticruna/dsh-secure-publish.git" },
+  "homepage": "https://github.com/lunaticruna/dsh-secure-publish#readme",
+  "bugs": { "url": "https://github.com/lunaticruna/dsh-secure-publish/issues" },
+  "type": "module",
+  "main": "lib/plugin.js",
+  "exports": { ".": "./lib/plugin.js", "./package.json": "./package.json" },
+  "bin": { "secure-publish": "./lib/cli.js" },
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node --test test/*.test.js", "check": "node scripts/check-package.js" },
+  "files": ["lib", "cordis.patch.yml", "examples", "docs", "README.md", "SECURITY.md", "LICENSE"],
+  "license": "MIT"
+}
