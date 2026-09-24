@@ -17,7 +17,7 @@
 
 发布与接收使用已固定的配置；工作区初始化只能选择已在终端登记的身份和 peer，不能用聊天参数改 source、中继或配置路径。不执行收到的代码、不自动编译、不注册模型工具、不启动网络监听。没有 npm 运行时依赖和安装脚本。
 
-## 1. 安装依赖和插件
+## 1. 安装依赖、插件与 CLI
 
 运行环境：Node.js **22+**、Git、官方 `age`（含 `age-keygen`）、`minisign`。只支持 age 原生 X25519 公钥，暂不接受 SSH recipient、硬件插件或 PQ key。
 
@@ -28,7 +28,7 @@ apt-get update
 apt-get install -y git age minisign
 ```
 
-普通 Linux 用户需要按系统要求加 `sudo`。**在 DSHA 的 Ubuntu 终端执行，不能把 Termux/bionic 二进制当成 Ubuntu/glibc 版本。** Node 由 DSHA 提供；检查 `node --version`。
+普通 Linux 用户需要按系统要求加 `sudo`。**在 DSHA 的 Ubuntu 终端执行，不能把 Termux/bionic 二进制当成 Ubuntu/glibc 版本。** Node 由 DSHA 提供；检查 `node --version`。使用下面的 npm / npx 入口还需确认 `npm --version` 和 `npx --version` 可用。
 
 macOS 使用官方软件包管理渠道安装 Node、Git、age 和 minisign。Windows 使用原生 Node 和对应官方 age/minisign 可执行文件，并安装 Git；也可以整套放进 WSL。二进制安装参考：[age](https://github.com/FiloSottile/age#installation)、[minisign](https://github.com/jedisct1/minisign#installation)。不要混用 Windows 与 WSL 的路径、密钥和状态目录。
 
@@ -48,22 +48,44 @@ dsh plugin --profile web add /absolute/path/to/dsh-secure-publish
 dsh plugin --profile web add github:lunaticruna/dsh-secure-publish
 ```
 
-需要固定版本时，在包地址后追加 `#完整提交SHA`。源码树就是可运行包，无需构建、无需 pnpm workspace。
+需要固定版本时，在包地址后追加 `#完整提交SHA`。源码树就是可运行包，无需构建、无需 pnpm workspace。这里安装的是 DSH 插件；终端 CLI 仍需按下面的 CLI 安装步骤单独安装，或使用第 3.1 节的免全局安装入口。
 
-### DSHA
+### DSHA：插件安装 + CLI 安装是两个步骤
+
+**「DSHA 插件已安装」不等于终端里的 `secure-publish` 命令已安装。** 默认流程是先安装插件，再单独安装 CLI；不想全局安装 CLI 时，可改用第 3.1 节的 `npx` 或 `/sp setup` 入口。
+
+| 安装步骤 | 提供的入口 | 验证位置与命令 |
+| --- | --- | --- |
+| 第 1 步：安装并启用插件 | DSH / DSHA 人工命令 | 对话输入框：`/sp help` |
+| 第 2 步：单独安装 CLI | 终端里的 `secure-publish` | DSHA Ubuntu 终端：`secure-publish help` |
+
+#### 第 1 步：安装并启用插件
 
 1. 在插件市场粘贴 `https://github.com/lunaticruna/dsh-secure-publish`，或通过「导入插件包」选择本项目 ZIP/TGZ。
 2. 启用插件，重启 Web。
 3. 在对话输入框输入 `/sp help`，应出现命令帮助。
 
-DSHA 文档明确：导入包不会运行 `prepare/build/install`；本包入口都是现成 JavaScript，符合这个要求。若依赖尚未安装，先完成上面的 Ubuntu 终端步骤。[DSHA 安装契约](https://github.com/DSH-APP/DSHA/blob/main/docs/plugins.md)。
+DSHA 文档明确：导入包不会运行 `prepare/build/install`；本包入口都是现成 JavaScript，符合这个要求。**插件包虽包含 `lib/cli.js`，导入插件并不会把 `secure-publish` 加入终端的 `PATH`。** 若依赖尚未安装，先完成上面的 Ubuntu 终端步骤。[DSHA 安装契约](https://github.com/DSH-APP/DSHA/blob/main/docs/plugins.md)。
+
+#### 第 2 步：在 Ubuntu 终端安装 CLI
+
+在 **DSHA 的 Ubuntu 终端**、与 DSHA 服务相同的用户环境中执行（不是聊天输入框，也不是外层 Termux）：
+
+```sh
+npm install --global --ignore-scripts "git+https://github.com/lunaticruna/dsh-secure-publish.git#2363da6dfe8a377daf77ca3d6dffdade7e6a993c"
+secure-publish help
+```
+
+此处固定到 [0.2.0 的实现提交](https://github.com/lunaticruna/dsh-secure-publish/commit/2363da6dfe8a377daf77ca3d6dffdade7e6a993c)，从 GitHub 安装，不依赖 npm 上的同名包。插件与 CLI 应使用相同版本；两者需要分别更新。安装成功只代表命令可用，设备身份和信任仍需在第 3.1 节执行 `bootstrap` 初始化。
+
+若 `/sp help` 正常，但终端报 `secure-publish: command not found`，先检查是否完成第 2 步；已安装则用 `command -v secure-publish` 检查当前 Ubuntu 用户的 `PATH`。不需要为此重复导入插件。遇到全局安装权限问题，可使用第 3.1 节的免全局安装入口；不要为了运行 `bootstrap` 切换到另一个用户，以免写入不同的配置目录。
 
 ### 目标机只需要 CLI
 
-目标机不必安装 DSH，也不必安装任何 coding agent：
+目标机不必安装 DSH，也不必安装任何 coding agent，直接在目标机执行上面的 CLI 安装命令即可。DSH 编码机也可以使用相同命令。若已克隆或解压本项目，还可以从本地目录安装：
 
 ```sh
-npm install -g /absolute/path/to/dsh-secure-publish
+npm install --global --ignore-scripts /absolute/path/to/dsh-secure-publish
 secure-publish help
 ```
 
@@ -94,21 +116,45 @@ secure-publish help
 | Workspace Profile | 项目标识、通道、当前 Git root、文件白名单、独立发布状态 | Publisher 当前 DSH Workspace，`/sp init` |
 | Receiver Profile | 两端一致的项目绑定、独立 targetRoot 和防重放状态 | Windows 等接收端 CLI，`profile add/clone` |
 
-### 3.1 DSHA / DSH：设备初始化只做一次
+### 3.1 DSHA / DSH：安装入口后，设备初始化只做一次
 
-已经通过插件市场安装时，先在对话输入框输入：
+推荐顺序：**安装插件 → 安装 CLI → 终端 `bootstrap` → 回到 Workspace `/sp init`**。插件安装和 CLI 安装是两个步骤，`bootstrap` 是安装后的设备初始化，不会自动安装 CLI。
+
+下面三个入口**任选一个**，无需重复初始化；都必须在受信任终端交互操作，不能把私钥或口令发进聊天。
+
+**A. 已全局安装 CLI（推荐日常使用）**
+
+确认 `secure-publish help` 可用后，在终端执行：
+
+```sh
+secure-publish bootstrap
+```
+
+**B. 不全局安装：用 npx 一次性初始化**
+
+已安装插件但终端还没有 `secure-publish` 时，可在同一 DSHA Ubuntu 用户的终端执行：
+
+```sh
+npx --yes --ignore-scripts --package="git+https://github.com/lunaticruna/dsh-secure-publish.git#2363da6dfe8a377daf77ca3d6dffdade7e6a993c" secure-publish bootstrap
+```
+
+此命令从本仓库固定的 0.2.0 提交取得 CLI，放入 npm 缓存并运行一次；**不会永久安装 `secure-publish` 命令，也不会安装 DSHA 插件或 age/minisign 等系统依赖**。首次获取需要能访问 GitHub。`--yes` 只同意 npm 获取包，不会跳过初始化向导的确认。不要简写为 `npx secure-publish`，以免使用 npm 上的其他包。
+
+后续终端操作沿用同一整条 `npx … secure-publish` 前缀，把末尾 `bootstrap` 换成 `peer add`、`doctor` 等；或完成第 1 节的全局 CLI 安装。初始化配置与密钥不在 npm 缓存中，默认保存在当前用户的 `~/.config/dsh-secure-publish/`。
+
+**C. 不另行下载 CLI：使用插件已附带的入口**
+
+在已启用插件的对话输入框输入：
 
 ```text
 /sp setup
 ```
 
-它会显示**当前插件实际安装位置**对应的完整 `node …/lib/cli.js --config … bootstrap` 命令。把这条命令复制到 DSHA 的 Ubuntu 终端执行，不需要查找安装目录，也不依赖全局 `secure-publish` 命令。后续终端命令可沿用同一命令前缀，把末尾 `bootstrap` 换成 `peer add` 等操作。
+它**只显示命令，不安装全局 CLI，也不在聊天中执行初始化**。输出包含当前插件实际安装位置对应的完整 `node …/lib/cli.js --config … bootstrap` 命令；把它原样复制到 DSHA 的 Ubuntu 终端执行即可，无需查找安装目录。后续操作沿用同一 `node …/lib/cli.js --config …` 前缀；插件升级或移动后，应重新运行 `/sp setup` 获取路径。
 
-已经全局安装 CLI 的设备可以直接运行：
+三个入口应使用同一用户、同一配置文件。如果终端与 DSHA 服务的用户目录不同，优先使用 `/sp setup` 给出的完整命令和 `--config` 路径；使用全局 CLI / npx 时，`--config <该绝对路径>` 放在 `bootstrap` 等子命令之前。不要在另一位置重新生成一套身份来解决“插件找不到配置”。
 
-```sh
-secure-publish bootstrap
-```
+**以下所有 `secure-publish …` 示例默认已全局安装 CLI；选择 B 或 C 时，请替换为对应的完整命令前缀。**
 
 Publisher 选择 `publisher`。向导只询问设备身份、密钥生成或导入、默认中继/分支/通道、Receiver peer；**不会询问项目名或 source 路径**。新建 minisign 密钥使用口令保护，口令由 minisign 在终端直接读取。
 
