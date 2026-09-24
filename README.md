@@ -2,19 +2,20 @@
 
 一个由人操作的 `minisign + age` 源码交付插件，提供独立 CLI，并通过同一个 bundle 接入 DSH / DSHA。编码机发布已提交的源码快照，目标机只接收、检查、应用、编译和调试；GitHub 中继仅保存密文。
 
-**状态：0.1.0 初始实现，适合先用非敏感测试项目验收。** 兼容的是 DSH 人工命令接口与 DSHA 插件包格式；本项目没有获得 Android 真机、Windows 或 macOS 的运行验收。完整验证记录见 [docs/VALIDATION.md](docs/VALIDATION.md)。
+**状态：0.2.0，新增工作区内项目初始化。** 兼容的是 DSH 人工命令接口与 DSHA 插件包格式；本项目没有获得 Android 真机、Windows 或 macOS 的运行验收。请先用非敏感测试项目验收，完整记录见 [docs/VALIDATION.md](docs/VALIDATION.md)。
 
 ## 已实现
 
 | 操作 | 行为 |
 | --- | --- |
+| Workspace Init | 当前 DSH Session cwd → 真实 Git root → 复用设备身份、peer 和中继默认值 → 预览 → 确认后注册项目 |
 | Publish | 固定路径白名单 → 已提交 Git blob → 两份 minisign 签名 → age 多接收者加密 → 预览 → 人工确认后 Git push |
 | Fetch | 固定仓库与分支 → 下载密文 → age 解密 → 固定 minisign 公钥验签 → SHA-256 → 防重放 → staging |
 | Diff / Apply | 展示增删改及文本差异；确认摘要绑定当时的配置、候选目录和当前目录；确认后替换完整快照 |
 | Rollback | 预览并恢复本地备份；最高已验证序号不会降低 |
 | Recover | 目录切换中断后检查日志，完成切换或恢复原目录 |
 
-不执行收到的代码、不自动编译、不注册模型工具、不启动网络监听、不让命令参数指定仓库、recipient 或任意覆盖路径。没有 npm 运行时依赖和安装脚本。
+发布与接收使用已固定的配置；工作区初始化只能选择已在终端登记的身份和 peer，不能用聊天参数改 source、中继或配置路径。不执行收到的代码、不自动编译、不注册模型工具、不启动网络监听。没有 npm 运行时依赖和安装脚本。
 
 ## 1. 安装依赖和插件
 
@@ -84,35 +85,118 @@ secure-publish help
 
 通过可信渠道核对公钥。禁止从待验证制品或同一个不可信中继自动更新信任公钥。每台接收设备保留自己的 age 私钥；签名私钥只放在发布端。移除某个 age recipient 只影响后续发布，不能撤回它已能解密的历史制品。
 
-## 3. 配置向导
+## 3. 一次配置设备，在每个 Workspace 内注册项目
 
-在受信任终端运行：
+| 层次 | 保存什么 | 在哪里维护 |
+| --- | --- | --- |
+| Device Identity | Publisher 的 minisign 密钥；Receiver 的 age 密钥 | 受信任终端，`bootstrap`，通常每台设备一次 |
+| Peer Trust | Windows 的 age 公钥；DSHA 的 pinned minisign 公钥；中继默认值 | 受信任终端，`bootstrap` / `peer` |
+| Workspace Profile | 项目标识、通道、当前 Git root、文件白名单、独立发布状态 | Publisher 当前 DSH Workspace，`/sp init` |
+| Receiver Profile | 两端一致的项目绑定、独立 targetRoot 和防重放状态 | Windows 等接收端 CLI，`profile add/clone` |
 
-```sh
-secure-publish init
+### 3.1 DSHA / DSH：设备初始化只做一次
+
+已经通过插件市场安装时，先在对话输入框输入：
+
+```text
+/sp setup
 ```
 
-默认配置是 `~/.config/dsh-secure-publish/config.json`。向导会创建专用 key 目录并引导生成本机密钥。发布端 minisign 默认生成**口令保护**私钥；口令交给 minisign 终端提示，不进 JSON、不进聊天。接收端生成 age 私钥并显示可分享的公钥。
+它会显示**当前插件实际安装位置**对应的完整 `node …/lib/cli.js --config … bootstrap` 命令。把这条命令复制到 DSHA 的 Ubuntu 终端执行，不需要查找安装目录，也不依赖全局 `secure-publish` 命令。后续终端命令可沿用同一命令前缀，把末尾 `bootstrap` 换成 `peer add` 等操作。
 
-两端都有各自待交换的公钥，可以先完成发布端/接收端的密钥生成，再根据示例填入配置。向导中止后保留已生成密钥，不覆盖它们；使用 [publisher.json](examples/publisher.json) / [receiver.json](examples/receiver.json) 完成配置即可。所有 `REPLACE_...` 必须替换，模板故意不能直接发布。
-
-多个项目在 `projects` 下增加不同简称。每个项目的 source、接收者、目标目录均由文件固定。CLI 可以用 `--config /absolute/config.json` 选择配置；插件只使用默认固定路径，不接受聊天参数改路径。
-
-Linux/macOS/DSHA：配置、私钥 `600`，私有目录 `700`；必须位于源码和接收目录之外。Windows 请用 NTFS ACL 限制为本人；本程序的 POSIX mode 检查不能验证 Windows ACL。DSHA 私钥放 Ubuntu 私有目录，不放共享 `/sdcard`。
-
-运行检查：
+已经全局安装 CLI 的设备可以直接运行：
 
 ```sh
+secure-publish bootstrap
+```
+
+Publisher 选择 `publisher`。向导只询问设备身份、密钥生成或导入、默认中继/分支/通道、Receiver peer；**不会询问项目名或 source 路径**。新建 minisign 密钥使用口令保护，口令由 minisign 在终端直接读取。
+
+Windows Receiver 选择 `receiver`，生成或导入 age identity。两端先通过可信渠道交换公钥。如果对端公钥还没准备好，可以留空完成本机初始化，之后运行 `peer add` 补上；新增第一个对应 peer 会成为新项目的默认值：
+
+```sh
+secure-publish identity show
+secure-publish peer add
+secure-publish peer list
+secure-publish peer show windows-main
 secure-publish doctor
 ```
 
-也可以输入 `/sp doctor`。Doctor 只检查本地环境和配置，不会代替实际中继读写验收。
+`identity show` 只显示可分享的公钥。`peer add` 输入的是对端公钥，禁止输入私钥。`peer default <name>` 切换**未来新增项目**的默认 peer；现有 profile 继续使用已经确认的信任绑定，不会静默换接收者。
+
+### 3.2 Publisher：回到当前 Workspace 输入 `/sp init`
+
+先在 DSH 创建并打开项目 Workspace，把源码纳入 Git。插件读取 `agent.session.header.cwd`，检测真实 Git root；打开仓库子目录时也会明确预览根目录。不会退回 DSH 服务进程的启动目录。
+
+```text
+/sp init
+```
+
+检查输出中的 Workspace、Git root、profile、共享项目标识、通道、中继、身份、peer、include/exclude 和选中/遗漏文件。默认简称和项目标识建议为仓库目录名；非 ASCII 名称会生成可用简称。中继与信任复用设备默认值。
+
+确认：
+
+```text
+/sp init <预览给出的24位摘要>
+/sp status
+/sp config
+```
+
+需要调整项目标识或白名单时，先重新预览，再确认新摘要：
+
+```text
+/sp init --profile project-a --project project-a --channel main --include src,README.md,package.json --exclude src/private
+```
+
+路径列表以逗号分隔，带空格的整个参数用引号包住，例如 `--include "src files,README.md"`；`--exclude ""` 表示空排除列表。`include` 是明确的文件/目录前缀，**不是 glob，也不会自动设为 `.`**。建议选择只是起点，必须检查遗漏的必要文件；不安全文件所在的目录不会被整目录建议选入。
+
+还可用 `--identity <已有身份>`、`--peers <已有peer1,已有peer2>` 选择已登记的信任。source 始终来自当前 Workspace 的 Git root；没有 `--source`、`--repository` 或 `--config` 聊天覆盖参数。
+
+确认有效期为 15 分钟，绑定当前 cwd、Git root/索引、配置版本、身份、peer 和白名单。切换 Workspace、更新 Git 索引或修改配置/密钥后，旧摘要会失效。预览只保存私有确认记录；确认后才原子写入配置，不生成新密钥、不上传源码。
+
+**5 个项目的用法**：在 Workspace A 完成 `/sp init` → 确认；切到 B、C、D、E 重复即可。第二个起无需再进终端，不用复制 Workspace 路径或编辑 JSON。各项目的序号、pending 和 state namespace 独立。
+
+已有绑定的 `/sp init` 只显示现有配置，不覆盖它。`/sp status`、`/sp config`、`/sp publish` 自动选择当前 Workspace。显式指定 Publisher profile 时也必须属于当前 Workspace，防止从 A 误发布 B；独立 CLI 的显式 profile 用法保留。
+
+### 3.3 Windows Receiver：通过 CLI 管理多个项目
+
+完成 Receiver bootstrap 和 Publisher 公钥登记后：
+
+```powershell
+secure-publish profile add
+secure-publish profile clone project-a project-b
+secure-publish profile clone project-a project-c
+secure-publish profile clone project-a project-d
+secure-publish profile clone project-a project-e
+secure-publish profile list
+secure-publish profile show project-b
+```
+
+`add` 使用设备默认信任；`clone` 复用来源 Receiver profile 的信任和中继。向导分别确认共享 project、channel、repository、branch，以及**新的专用接收目录**。Windows 路径可直接输入 `D:\SecureWorkspaces\project-b`，无需 JSON 转义。
+
+两端本机简称可以不同，共享 `project + channel + repository + branch` 必须一致。首次信任序号下限由你通过可信渠道获得并输入；clone 不复制旧项目的 highwater、pending、staged 或源码目录。
+
+`profile remove <name>` 只移除注册，保留密钥、源码、备份和状态。旧名称及项目绑定会保留为退役记录，禁止通过 add/clone 重用并重置防重放状态；重新开始应使用明确的新 project/channel。移除仍被项目引用的 peer 会被拒绝。
+
+### 3.4 从 0.1.0 升级
+
+现有 config v1 可以继续读取，已有项目和发布序号不迁移、不重置。已有 Publisher source 与当前 Git root 唯一匹配时，可直接 `/sp status` / `/sp publish`。新增项目之前运行一次 `bootstrap`，选择复用原有 profile，即可登记设备身份、peer 和默认值，**不会重新生成原有密钥**。
+
+0.2.0 的 CLI `secure-publish init` 是 `bootstrap` 的兼容别名，语义已收敛为设备初始化；项目注册使用 DSH 的 `/sp init` 或 Receiver 的 `profile add`。
+
+磁盘仍使用 version 1 和原有 `projects` 字段，新增可选的 `device` 元数据。**读取兼容方向是 0.2.0 读取旧配置**；写入 device 后，0.1.0 会拒绝未知字段，不能直接用旧二进制回退。升级前请备份配置和状态；降级时不得回滚防重放状态。
+
+默认配置位置仍是 `~/.config/dsh-secure-publish/config.json`。正常多项目使用无需编辑 JSON；[publisher.json](examples/publisher.json) / [receiver.json](examples/receiver.json) 保留为旧格式参考和高级恢复资料。
+
+Linux/macOS/DSHA：配置、私钥 `600`，私有目录 `700`，位于源码和接收目录之外。Windows 用 NTFS ACL 限制为本人，本程序不能验证 Windows ACL。DSHA 私钥放 Ubuntu 私有目录，不放共享 `/sdcard`。
+
+`/sp doctor` 检查本地配置和依赖，不代替真实中继验收。若终端在配置写入期间崩溃，先确认原进程已退出，再运行 `secure-publish config unlock`；活进程锁不能清除。
 
 ### Web 端发布与口令保护的签名私钥
 
 Web 不询问或接收私钥口令。对于口令保护的 minisign 私钥：**在受信任终端执行 publish 预览和确认**。首版为清单和制品分别签名，可能询问两次口令。
 
-无人值守、无口令的 minisign 密钥可以被 `/sp publish` 使用，但同 UID 的 agent Bash 也可能读取它。请先理解 [SECURITY.md](SECURITY.md)；不要为了省步骤把已有口令保护密钥解密存到项目中。若要阻止同 UID agent 接触私钥，需要独立系统用户/外部签名机等 OS 隔离，首版没有实现这种隔离。
+无人值守、无口令的 minisign 密钥可以被 `/sp publish` 使用，但同 UID 的 agent Bash 也可能读取它。请先理解 [SECURITY.md](SECURITY.md)；不要为了省步骤把已有口令保护密钥解密存到项目中。若要阻止同 UID agent 接触私钥，需要独立系统用户/外部签名机等 OS 隔离，本版没有实现这种隔离。Workspace 初始化本身不签名，因此可复用口令保护密钥而不在 Web 索要口令。
 
 ## 4. 日常交付
 
@@ -136,7 +220,7 @@ secure-publish diff laptop
 secure-publish apply laptop <diff给出的24位确认摘要>
 ```
 
-使用插件时，同样输入 `/sp fetch laptop`、`/sp diff laptop`、`/sp apply laptop <摘要>`。
+Publisher 使用插件时，在当前 Workspace 输入 `/sp publish`，确认用 `/sp publish <摘要>`，无需重复 profile 名。Receiver 插件命令仍为 `/sp fetch laptop`、`/sp diff laptop`、`/sp apply laptop <摘要>`；独立 Windows 接收机通常直接使用上述 CLI。
 
 最终源码在配置的 `targetRoot/current`。这是完整目录快照交付，包含新增、修改和删除。**新目录会取代整个 current，不是往现有仓库覆盖/合并。** 编译输出尽量设置到 `targetRoot` 之外。current 中额外的普通文件会列在 `extraPreservedInBackup`，应用后保留在备份里，不会进入新的 current。接收端若直接改动已管理源码，会拒绝应用；先将调试修改复制到别处，人工反馈给编码机。
 

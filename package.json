@@ -1,6 +1,6 @@
 {
   "name": "dsh-secure-publish",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Human-controlled minisign + age Publish / Fetch for DSH and DSHA",
   "repository": { "type": "git", "url": "git+https://github.com/lunaticruna/dsh-secure-publish.git" },
   "homepage": "https://github.com/lunaticruna/dsh-secure-publish#readme",
